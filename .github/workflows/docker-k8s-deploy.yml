@@ -1,0 +1,40 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+
+      - name: Build Docker image
+        run: docker build -t yourusername/yourapp:latest .
+
+      - name: Push Docker image
+        run: docker push yourusername/yourapp:latest
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up Kubernetes
+        uses: Azure/setup-kubectl@v1
+        with:
+          version: 'latest'
+
+      - name: Deploy to Kubernetes
+        run: kubectl apply -f path/to/your/k8s-deployment.yaml
+
+      - name: Notify Slack or log
+        if: failure()
+        run: echo "Deployment failed!"
