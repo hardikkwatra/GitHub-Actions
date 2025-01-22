@@ -53,32 +53,27 @@ jobs:
           curl -LO "https://github.com/containernetworking/plugins/releases/download/v1.1.1/cni-plugins-linux-amd64-v1.1.1.tgz"
           sudo mkdir -p /opt/cni/bin
           sudo tar -xzvf cni-plugins-linux-amd64-v1.1.1.tgz -C /opt/cni/bin
-
       - name: Install Minikube
         run: |
           curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
           sudo install minikube /usr/local/bin/
-
       - name: Start Minikube with Docker driver as non-root user
         run: |
           sudo -i -u $USER bash <<EOF
           minikube start --driver=docker
           minikube addons enable ingress
           EOF
-
       - name: Set up kubectl context
         run: |
           sudo -i -u $USER bash <<EOF
           minikube update-context
           EOF
-
       - name: Apply Kubernetes configuration
         run: |
           sudo -i -u $USER bash <<EOF
           kubectl apply -f $(pwd)/k8s-deployment.yaml
           kubectl rollout status deployment/flask-app
           EOF
-
       - name: Log deployment status
         run: |
           sudo -i -u $USER bash <<EOF
@@ -87,25 +82,21 @@ jobs:
           kubectl get services --all-namespaces
           kubectl get deployments --all-namespaces
           EOF
-
       - name: Describe pod
         run: |
           sudo -i -u $USER bash <<EOF
           kubectl describe pod -l app=flask-app
           EOF
-
       - name: Describe deployment
         run: |
           sudo -i -u $USER bash <<EOF
           kubectl describe deployment flask-app
           EOF
-
       - name: Log events
         run: |
           sudo -i -u $USER bash <<EOF
           kubectl get events --sort-by=.metadata.creationTimestamp --namespace default
           EOF
-
       - name: Check pod logs
         run: |
           sudo -i -u $USER bash <<EOF
@@ -116,7 +107,6 @@ jobs:
             echo "No pods available to log."
           fi
           EOF
-
       - name: Check Flask app response
         run: |
           sudo -i -u $USER bash <<EOF
@@ -129,8 +119,6 @@ jobs:
             echo "No pods available for port-forwarding."
           fi
           EOF
-
       - name: Notify Slack or log
         if: failure()
         run: echo "Deployment failed!"
-
