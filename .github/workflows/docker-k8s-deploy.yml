@@ -122,22 +122,10 @@ jobs:
             echo "No pods available to check."
           fi
           EOF
-      - name: Check Flask app response from within the pod
+      - name: Create test pod to check Flask app response
         run: |
           sudo -i -u $USER bash <<EOF
-          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --namespace default || echo "NoPod")
-          if [[ "$POD_NAME" != "NoPod" ]]; then
-            kubectl exec "$POD_NAME" -- curl http://localhost:5000 || echo "Flask app not reachable from within the pod."
-          else
-            echo "No pods available to check."
-          fi
-          EOF
-      - name: Check Flask app response using port-forward
-        run: |
-          sudo -i -u $USER bash <<EOF
-          kubectl port-forward svc/flask-app-service 8080:5000 -n default &
-          sleep 10
-          curl http://localhost:8080 || echo "Flask app not reachable"
+          kubectl run test-curl --rm -i --tty --image=radial/busyboxplus:curl --restart=Never -- curl -sS http://flask-app-service:5000 || echo "Flask app not reachable from test pod."
           EOF
       - name: Notify Slack or log
         if: failure()
