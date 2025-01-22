@@ -52,14 +52,15 @@ jobs:
 
       - name: Install cri-dockerd
         run: |
-          git clone https://github.com/Mirantis/cri-dockerd.git
-          cd cri-dockerd
-          sudo make cri-dockerd
-          sudo install -o root -g root -m 0755 cri-dockerd /usr/local/bin/cri-dockerd
-          sudo cp -a packaging/systemd/* /etc/systemd/system/
+          sudo mkdir -p /usr/local/bin
+          curl -LO "https://github.com/Mirantis/cri-dockerd/releases/download/v0.2.0/cri-dockerd-v0.2.0-linux-amd64.tar.gz"
+          sudo tar -xzvf cri-dockerd-v0.2.0-linux-amd64.tar.gz -C /usr/local/bin/
+          sudo wget https://raw.githubusercontent.com/Mirantis/cri-dockerd/master/packaging/systemd/cri-docker.service -P /etc/systemd/system/
+          sudo wget https://raw.githubusercontent.com/Mirantis/cri-dockerd/master/packaging/systemd/cri-docker.socket -P /etc/systemd/system/
           sudo systemctl daemon-reload
           sudo systemctl enable cri-docker.service
-          sudo systemctl start cri-docker.service
+          sudo systemctl enable --now cri-docker.socket
+          sudo systemctl restart docker
 
       - name: Install Minikube
         run: |
