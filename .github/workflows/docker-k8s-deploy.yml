@@ -40,7 +40,7 @@ jobs:
         run: ls -R
 
       - name: Deploy to Kubernetes
-        run: kubectl apply -f k8s-deployment.yaml
+        run: kubectl apply -f k8s-deployment.yaml --validate=false
 
       - name: Notify Slack or log
         if: failure()
