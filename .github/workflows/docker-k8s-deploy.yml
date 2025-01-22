@@ -61,28 +61,27 @@ jobs:
 
       - name: Start Minikube with Docker driver as non-root user
         run: |
-          sudo -i -u $USER bash << EOF
+          sudo -i -u $USER bash <<EOF
           minikube start --driver=docker
           minikube addons enable ingress
           EOF
 
       - name: Set up kubectl context
         run: |
-          sudo -i -u $USER bash << EOF
+          sudo -i -u $USER bash <<EOF
           minikube update-context
           EOF
 
       - name: Apply Kubernetes configuration
         run: |
-          sudo -i -u $USER bash << EOF
-          kubectl apply -f k8s-deployment.yaml
-          kubectl apply -f k8s-service.yaml
+          sudo -i -u $USER bash <<EOF
+          kubectl apply -f $(pwd)/k8s-deployment.yaml
           kubectl rollout status deployment/flask-app
           EOF
 
       - name: Log deployment status
         run: |
-          sudo -i -u $USER bash << EOF
+          sudo -i -u $USER bash <<EOF
           kubectl get nodes
           kubectl get pods --all-namespaces
           kubectl get services --all-namespaces
@@ -91,25 +90,25 @@ jobs:
 
       - name: Describe pod
         run: |
-          sudo -i -u $USER bash << EOF
+          sudo -i -u $USER bash <<EOF
           kubectl describe pod -l app=flask-app
           EOF
 
       - name: Describe deployment
         run: |
-          sudo -i -u $USER bash << EOF
+          sudo -i -u $USER bash <<EOF
           kubectl describe deployment flask-app
           EOF
 
       - name: Log events
         run: |
-          sudo -i -u $USER bash << EOF
+          sudo -i -u $USER bash <<EOF
           kubectl get events --sort-by=.metadata.creationTimestamp --namespace default
           EOF
 
       - name: Check pod logs
         run: |
-          sudo -i -u $USER bash << EOF
+          sudo -i -u $USER bash <<EOF
           POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --namespace default || echo "NoPod")
           if [[ "$POD_NAME" != "NoPod" ]]; then
             kubectl logs $POD_NAME
@@ -120,7 +119,7 @@ jobs:
 
       - name: Check Flask app response
         run: |
-          sudo -i -u $USER bash << EOF
+          sudo -i -u $USER bash <<EOF
           POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --namespace default || echo "NoPod")
           if [[ "$POD_NAME" != "NoPod" ]]; then
             kubectl port-forward $POD_NAME 5000:5000 &
