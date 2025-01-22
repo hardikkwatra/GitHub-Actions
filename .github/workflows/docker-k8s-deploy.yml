@@ -41,7 +41,7 @@ jobs:
       - name: Install dependencies including conntrack, crictl, and CNI plugins
         run: |
           sudo apt-get update
-          sudo apt-get install -y apt-transport-https ca-certificates curl conntrack containernetworking-plugins
+          sudo apt-get install -y apt-transport-https ca-certificates curl conntrack
           sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
           sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
           sudo apt-get update
@@ -49,6 +49,10 @@ jobs:
           curl -LO "https://github.com/kubernetes-sigs/cri-tools/releases/download/v1.32.0/crictl-v1.32.0-linux-amd64.tar.gz"
           sudo tar zxvf crictl-v1.32.0-linux-amd64.tar.gz -C /usr/local/bin
           sudo ln -s /usr/local/bin/crictl /usr/bin/crictl
+          # Download and install CNI plugins
+          curl -LO "https://github.com/containernetworking/plugins/releases/download/v1.1.1/cni-plugins-linux-amd64-v1.1.1.tgz"
+          sudo mkdir -p /opt/cni/bin
+          sudo tar -xzvf cni-plugins-linux-amd64-v1.1.1.tgz -C /opt/cni/bin
 
       - name: Install cri-dockerd
         run: |
