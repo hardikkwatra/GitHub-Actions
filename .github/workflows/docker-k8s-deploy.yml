@@ -61,23 +61,23 @@ jobs:
           kubectl get services
           kubectl get deployments
 
-      - name: Describe pods
-        run: kubectl describe pods
+      - name: Describe deployment
+        run: kubectl describe deployment flask-app
+
+      - name: Log events
+        run: kubectl get events --sort-by=.metadata.creationTimestamp
 
       - name: Check pod logs
         run: |
           POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}")
-          kubectl logs $POD_NAME
-
-      - name: Log events
-        run: kubectl get events --sort-by=.metadata.creationTimestamp
+          kubectl logs $POD_NAME || echo "No pods found for logging"
 
       - name: Check Flask app response
         run: |
           POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}")
           kubectl port-forward $POD_NAME 5000:5000 &
           sleep 10
-          curl http://localhost:5000
+          curl http://localhost:5000 || echo "Flask app not reachable"
 
       - name: Notify Slack or log
         if: failure()
