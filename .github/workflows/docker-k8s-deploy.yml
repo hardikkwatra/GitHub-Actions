@@ -47,20 +47,20 @@ jobs:
           curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64
           chmod +x ./kind
           sudo mv ./kind /usr/local/bin/kind
-          kind create cluster
+          kind create cluster --config=kind-config.yaml
+
+      - name: Apply network CNI plugin
+        run: |
+          kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+          sleep 30  # Wait for the CNI plugin to initialize
 
       - name: Set up Kubernetes context for KinD
         run: kubectl cluster-info --context kind-kind
 
-      - name: Verify network plugin
-        run: kubectl get pods -n kube-system
-
-      - name: Restart KinD cluster if needed
-        run: |
-          kubectl get nodes | grep "NotReady" && kind delete cluster && kind create cluster || echo "Cluster is ready"
-
       - name: Deploy to Kubernetes
-        run: kubectl apply -f k8s-deployment.yaml
+        run: |
+          kubectl apply -f k8s-deployment.yaml
+          kubectl rollout status deployment/flask-app
 
       - name: Log deployment status
         run: |
@@ -80,15 +80,23 @@ jobs:
 
       - name: Check pod logs
         run: |
-          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --all-namespaces)
-          kubectl logs $POD_NAME || echo "No pods found for logging"
+          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --namespace default || echo "NoPod")
+          if [[ "$POD_NAME" != "NoPod" ]]; then
+            kubectl logs $POD_NAME
+          else
+            echo "No pods available to log."
+          fi
 
       - name: Check Flask app response
         run: |
-          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --all-namespaces)
-          kubectl port-forward $POD_NAME 5000:5000 &
-          sleep 10
-          curl http://localhost:5000 || echo "Flask app not reachable"
+          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --namespace default || echo "NoPod")
+          if [[ "$POD_NAME" != "NoPod" ]]; then
+            kubectl port-forward $POD_NAME 5000:5000 &
+            sleep 10
+            curl http://localhost:5000 || echo "Flask app not reachable"
+          else
+            echo "No pods available for port-forwarding."
+          fi
 
       - name: Notify Slack or log
         if: failure()
