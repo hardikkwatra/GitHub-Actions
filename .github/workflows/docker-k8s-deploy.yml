@@ -1,4 +1,4 @@
-name: Build and Deploy
+name: Build and Deploy to Minikube
 
 on:
   push:
@@ -10,111 +10,72 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout the repository code
       - name: Checkout code
         uses: actions/checkout@v2
 
+      # Log in to Docker Hub
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
 
+      # Build Docker image
       - name: Build Docker image
-        run: docker build -t hardddyy/flask-app:latest .
+        run: docker build -t <your-dockerhub-username>/flask-app:latest .
 
+      # Push Docker image to Docker Hub
       - name: Push Docker image
-        run: docker push hardddyy/flask-app:latest
+        run: docker push <your-dockerhub-username>/flask-app:latest
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout the repository code
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Install dependencies
+      # Set up Kubernetes CLI (kubectl)
+      - name: Install kubectl
         run: |
-          sudo apt-get update
-          sudo apt-get install -y apt-transport-https ca-certificates curl
-          sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-          sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-          sudo apt-get update
-          sudo apt-get install -y docker-ce
           curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
           chmod +x ./kubectl
           sudo mv ./kubectl /usr/local/bin/kubectl
 
-      - name: Set up KinD cluster
+      # Set up Minikube context using KUBE_CONFIG
+      - name: Set up Minikube context
+        env:
+          KUBECONFIG: ${{ secrets.KUBE_CONFIG }}
         run: |
-          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64
-          chmod +x ./kind
-          sudo mv ./kind /usr/local/bin/kind
-          kind create cluster --config=kind-config.yaml
+          echo "$KUBECONFIG" | base64 --decode > kubeconfig
+          export KUBECONFIG=kubeconfig
+          kubectl cluster-info
 
-      - name: Apply Calico CNI plugin
+      # Apply Kubernetes deployment YAML
+      - name: Deploy to Minikube
+        env:
+          KUBECONFIG: ${{ secrets.KUBE_CONFIG }}
         run: |
-          kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
-          sleep 60  # Allow more time for the CNI plugin to initialize
-
-      - name: Verify network plugin
-        run: |
-          echo "Waiting for network plugin to initialize..."
-          kubectl get pods --all-namespaces
-          kubectl get nodes
-
-      - name: Restart KinD cluster if needed
-        run: |
-          if kubectl get nodes | grep "NotReady"; then
-            echo "Restarting KinD cluster due to NotReady state"
-            kind delete cluster
-            kind create cluster --config=kind-config.yaml
-            kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
-            sleep 60  # Allow more time for the CNI plugin to initialize
-          else
-            echo "Cluster is ready"
-          fi
-
-      - name: Set up Kubernetes context for KinD
-        run: kubectl cluster-info --context kind-kind
-
-      - name: Deploy to Kubernetes
-        run: |
+          echo "$KUBECONFIG" | base64 --decode > kubeconfig
+          export KUBECONFIG=kubeconfig
           kubectl apply -f k8s-deployment.yaml
 
-      - name: Log deployment status
+      # Log deployment status
+      - name: Check deployment status
+        env:
+          KUBECONFIG: ${{ secrets.KUBE_CONFIG }}
         run: |
-          kubectl get nodes
-          kubectl get pods --all-namespaces
-          kubectl get services --all-namespaces
-          kubectl get deployments --all-namespaces
+          echo "$KUBECONFIG" | base64 --decode > kubeconfig
+          export KUBECONFIG=kubeconfig
+          kubectl get pods
+          kubectl get services
 
-      - name: Describe node
-        run: kubectl describe node kind-control-plane
-
-      - name: Describe deployment
-        run: kubectl describe deployment flask-app
-
-      - name: Log events
-        run: kubectl get events --all-namespaces --sort-by=.metadata.creationTimestamp
-
-      - name: Check pod logs
+      # Check logs of the deployed application
+      - name: Check Flask app logs
+        env:
+          KUBECONFIG: ${{ secrets.KUBE_CONFIG }}
         run: |
-          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --namespace default || echo "NoPod")
-          if [[ "$POD_NAME" != "NoPod" ]]; then
-            kubectl logs $POD_NAME
-          else
-            echo "No pods available to log."
-          fi
-
-      - name: Check Flask app response
-        run: |
-          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --namespace default || echo "NoPod")
-          if [[ "$POD_NAME" != "NoPod" ]]; then
-            kubectl port-forward $POD_NAME 5000:5000 &
-            sleep 10
-            curl http://localhost:5000 || echo "Flask app not reachable"
-          else
-            echo "No pods available for port-forwarding."
-          fi
-
-      - name: Notify Slack or log
-        if: failure()
-        run: echo "Deployment failed!"
+          echo "$KUBECONFIG" | base64 --decode > kubeconfig
+          export KUBECONFIG=kubeconfig
+          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}")
+          kubectl logs $POD_NAME
