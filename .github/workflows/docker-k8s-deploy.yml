@@ -68,11 +68,15 @@ jobs:
           sudo -i -u $USER bash <<EOF
           minikube update-context
           EOF
-      - name: Apply Kubernetes configuration
+      - name: Apply Kubernetes deployment
         run: |
           sudo -i -u $USER bash <<EOF
-          kubectl apply -f $(pwd)/k8s-deployment.yaml
-          kubectl rollout status deployment/flask-app
+          kubectl apply -f $(pwd)/deployment.yaml
+          EOF
+      - name: Apply Kubernetes service
+        run: |
+          sudo -i -u $USER bash <<EOF
+          kubectl apply -f $(pwd)/service.yaml
           EOF
       - name: Wait for pod readiness
         run: |
@@ -102,24 +106,40 @@ jobs:
           sudo -i -u $USER bash <<EOF
           kubectl describe svc flask-app-service
           EOF
-      - name: Check pod logs
+      - name: Check pod status and labels
+        run: |
+          sudo -i -u $USER bash <<EOF
+          kubectl get pods -l app=flask-app -o wide
+          kubectl get pod -l app=flask-app --show-labels
+          EOF
+      - name: Describe pod events
         run: |
           sudo -i -u $USER bash <<EOF
           POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --namespace default || echo "NoPod")
           if [[ "$POD_NAME" != "NoPod" ]]; then
-            kubectl logs $POD_NAME || echo "No logs available for the pod."
+            kubectl describe pod "$POD_NAME"
+          else
+            echo "No pods available to describe."
+          fi
+          EOF
+      - name: Check pod logs
+        run: |
+          sudo -i -u $USER bash <<EOF
+          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}")
+          if [[ -n "$POD_NAME" ]]; then
+            kubectl logs "$POD_NAME" || echo "No logs available for the pod."
           else
             echo "No pods available to log."
           fi
           EOF
-      - name: Verify Flask app port
+      - name: Describe pod container status
         run: |
           sudo -i -u $USER bash <<EOF
-          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --namespace default || echo "NoPod")
-          if [[ "$POD_NAME" != "NoPod" ]]; then
-            kubectl exec "$POD_NAME" -- netstat -tuln | grep 5000 || echo "Flask app not listening on port 5000."
+          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}")
+          if [[ -n "$POD_NAME" ]]; then
+            kubectl describe pod "$POD_NAME" | grep -A 10 "Containers:"
           else
-            echo "No pods available to check."
+            echo "No pods available to describe."
           fi
           EOF
       - name: Create test pod to check Flask app response
