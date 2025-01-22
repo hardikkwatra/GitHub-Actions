@@ -74,6 +74,11 @@ jobs:
           kubectl apply -f $(pwd)/k8s-deployment.yaml
           kubectl rollout status deployment/flask-app
           EOF
+      - name: Wait for pod readiness
+        run: |
+          sudo -i -u $USER bash <<'EOF'
+          kubectl wait --for=condition=ready pod -l app=flask-app --timeout=120s
+          EOF
       - name: Log deployment status
         run: |
           sudo -i -u $USER bash <<EOF
@@ -106,11 +111,6 @@ jobs:
           else
             echo "No pods available to log."
           fi
-          EOF
-      - name: Wait for pod readiness
-        run: |
-          sudo -i -u $USER bash <<EOF
-          kubectl wait --for=condition=ready pod -l app=flask-app --timeout=120s
           EOF
       - name: Check Flask app response
         run: |
