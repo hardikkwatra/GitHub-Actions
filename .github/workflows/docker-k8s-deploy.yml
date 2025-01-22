@@ -101,11 +101,15 @@ jobs:
           EOF
       - name: Fetch node internal IP
         run: |
-          sudo -i -u $USER bash <<EOF
-          NODE_IP=$(kubectl get nodes -o jsonpath="{.items[0].status.addresses[0].address}")
+          NODE_IP=$(kubectl get nodes -o wide | grep -m 1 -oP '(?<=\s)\d{1,3}(\.\d{1,3}){3}(?=\s)')
           echo "Node IP: $NODE_IP"
-          curl http://$NODE_IP:32188 || echo "Flask app not reachable"
-          EOF
+
+          if [[ $NODE_IP == *"."* ]]; then
+            echo "Fetching from Node IP: http://$NODE_IP:32188"
+            curl http://$NODE_IP:32188 || echo "Flask app not reachable"
+          else
+            echo "Invalid Node IP address: $NODE_IP"
+          fi
       - name: Notify Slack or log
         if: failure()
         run: echo "Deployment failed!"
