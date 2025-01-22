@@ -57,24 +57,24 @@ jobs:
 
       - name: Log deployment status
         run: |
-          kubectl get pods
-          kubectl get services
-          kubectl get deployments
+          kubectl get pods --all-namespaces
+          kubectl get services --all-namespaces
+          kubectl get deployments --all-namespaces
 
       - name: Describe deployment
         run: kubectl describe deployment flask-app
 
       - name: Log events
-        run: kubectl get events --sort-by=.metadata.creationTimestamp
+        run: kubectl get events --all-namespaces --sort-by=.metadata.creationTimestamp
 
       - name: Check pod logs
         run: |
-          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}")
+          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --all-namespaces)
           kubectl logs $POD_NAME || echo "No pods found for logging"
 
       - name: Check Flask app response
         run: |
-          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}")
+          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --all-namespaces)
           kubectl port-forward $POD_NAME 5000:5000 &
           sleep 10
           curl http://localhost:5000 || echo "Flask app not reachable"
