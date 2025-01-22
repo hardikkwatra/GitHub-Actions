@@ -107,11 +107,6 @@ jobs:
             echo "No pods available to log."
           fi
           EOF
-      - name: Wait for pod readiness
-        run: |
-          sudo -i -u $USER bash <<EOF
-          kubectl wait --for=condition=ready pod -l app=flask-app --timeout=120s
-          EOF
       - name: Check Flask app response
         run: |
           sudo -i -u $USER bash <<EOF
