@@ -52,6 +52,13 @@ jobs:
       - name: Set up Kubernetes context for KinD
         run: kubectl cluster-info --context kind-kind
 
+      - name: Verify network plugin
+        run: kubectl get pods -n kube-system
+
+      - name: Restart KinD cluster if needed
+        run: |
+          kubectl get nodes | grep "NotReady" && kind delete cluster && kind create cluster || echo "Cluster is ready"
+
       - name: Deploy to Kubernetes
         run: kubectl apply -f k8s-deployment.yaml
 
