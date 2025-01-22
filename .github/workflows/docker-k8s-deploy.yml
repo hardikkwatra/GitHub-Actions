@@ -107,17 +107,17 @@ jobs:
             echo "No pods available to log."
           fi
           EOF
+      - name: Wait for pod readiness
+        run: |
+          sudo -i -u $USER bash <<EOF
+          kubectl wait --for=condition=ready pod -l app=flask-app --timeout=120s
+          EOF
       - name: Check Flask app response
         run: |
           sudo -i -u $USER bash <<EOF
-          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --namespace default || echo "NoPod")
-          if [[ "$POD_NAME" != "NoPod" ]]; then
-            kubectl port-forward $POD_NAME 5000:5000 &
-            sleep 10
-            curl http://localhost:5000 || echo "Flask app not reachable"
-          else
-            echo "No pods available for port-forwarding."
-          fi
+          NODE_IP=$(kubectl get nodes -o jsonpath="{.items[0].status.addresses[0].address}")
+          SERVICE_PORT=$(kubectl get service flask-app-service -o jsonpath="{.spec.ports[0].nodePort}")
+          curl http://$NODE_IP:$SERVICE_PORT || echo "Flask app not reachable"
           EOF
       - name: Notify Slack or log
         if: failure()
