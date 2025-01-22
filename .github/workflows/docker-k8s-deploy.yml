@@ -97,10 +97,10 @@ jobs:
           sudo -i -u $USER bash <<EOF
           kubectl describe deployment flask-app
           EOF
-      - name: Log events
+      - name: Describe service
         run: |
           sudo -i -u $USER bash <<EOF
-          kubectl get events --sort-by=.metadata.creationTimestamp --namespace default
+          kubectl describe svc flask-app-service
           EOF
       - name: Check pod logs
         run: |
@@ -112,12 +112,25 @@ jobs:
             echo "No pods available to log."
           fi
           EOF
-      - name: Check Flask app response
+      - name: Verify Flask app port
         run: |
           sudo -i -u $USER bash <<EOF
-          kubectl port-forward svc/flask-app-service 8080:5000 -n default &
-          sleep 10
-          curl http://localhost:8080 || echo "Flask app not reachable"
+          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --namespace default || echo "NoPod")
+          if [[ "$POD_NAME" != "NoPod" ]]; then
+            kubectl exec $POD_NAME -- netstat -tuln | grep 5000 || echo "Flask app not listening on port 5000."
+          else
+            echo "No pods available to check."
+          fi
+          EOF
+      - name: Check Flask app response from within the pod
+        run: |
+          sudo -i -u $USER bash <<EOF
+          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --namespace default || echo "NoPod")
+          if [[ "$POD_NAME" != "NoPod" ]]; then
+            kubectl exec $POD_NAME -- curl http://localhost:5000 || echo "Flask app not reachable from within the pod."
+          else
+            echo "No pods available to check."
+          fi
           EOF
       - name: Notify Slack or log
         if: failure()
