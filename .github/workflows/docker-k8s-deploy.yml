@@ -47,7 +47,7 @@ jobs:
           curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64
           chmod +x ./kind
           sudo mv ./kind /usr/local/bin/kind
-          kind create cluster
+          kind create cluster --config=kind-config.yaml
 
       - name: Apply Calico CNI plugin
         run: |
@@ -65,7 +65,7 @@ jobs:
           if kubectl get nodes | grep "NotReady"; then
             echo "Restarting KinD cluster due to NotReady state"
             kind delete cluster
-            kind create cluster
+            kind create cluster --config=kind-config.yaml
             kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
             sleep 60  # Allow more time for the CNI plugin to initialize
           else
