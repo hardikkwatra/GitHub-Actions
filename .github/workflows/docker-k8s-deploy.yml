@@ -59,48 +59,68 @@ jobs:
           curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
           sudo install minikube /usr/local/bin/
 
-      - name: Start Minikube with Docker driver
+      - name: Start Minikube with Docker driver as non-root user
         run: |
-          sudo minikube start --driver=docker
-          sudo minikube addons enable ingress
+          sudo -i -u $USER bash << EOF
+          minikube start --driver=docker
+          minikube addons enable ingress
+          EOF
 
       - name: Set up kubectl context
         run: |
+          sudo -i -u $USER bash << EOF
           minikube update-context
+          EOF
 
       - name: Apply Kubernetes configuration
         run: |
+          sudo -i -u $USER bash << EOF
           kubectl apply -f k8s-deployment.yaml
           kubectl apply -f k8s-service.yaml
           kubectl rollout status deployment/flask-app
+          EOF
 
       - name: Log deployment status
         run: |
+          sudo -i -u $USER bash << EOF
           kubectl get nodes
           kubectl get pods --all-namespaces
           kubectl get services --all-namespaces
           kubectl get deployments --all-namespaces
+          EOF
 
       - name: Describe pod
-        run: kubectl describe pod -l app=flask-app
+        run: |
+          sudo -i -u $USER bash << EOF
+          kubectl describe pod -l app=flask-app
+          EOF
 
       - name: Describe deployment
-        run: kubectl describe deployment flask-app
+        run: |
+          sudo -i -u $USER bash << EOF
+          kubectl describe deployment flask-app
+          EOF
 
       - name: Log events
-        run: kubectl get events --sort-by=.metadata.creationTimestamp --namespace default
+        run: |
+          sudo -i -u $USER bash << EOF
+          kubectl get events --sort-by=.metadata.creationTimestamp --namespace default
+          EOF
 
       - name: Check pod logs
         run: |
+          sudo -i -u $USER bash << EOF
           POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --namespace default || echo "NoPod")
           if [[ "$POD_NAME" != "NoPod" ]]; then
             kubectl logs $POD_NAME
           else
             echo "No pods available to log."
           fi
+          EOF
 
       - name: Check Flask app response
         run: |
+          sudo -i -u $USER bash << EOF
           POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --namespace default || echo "NoPod")
           if [[ "$POD_NAME" != "NoPod" ]]; then
             kubectl port-forward $POD_NAME 5000:5000 &
@@ -109,6 +129,7 @@ jobs:
           else
             echo "No pods available for port-forwarding."
           fi
+          EOF
 
       - name: Notify Slack or log
         if: failure()
