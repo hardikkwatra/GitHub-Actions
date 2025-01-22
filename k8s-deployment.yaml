@@ -72,12 +72,11 @@ jobs:
           minikube update-context
           EOF
 
-      - name: Apply Kubernetes configuration and wait for rollout
+      - name: Apply Kubernetes configuration
         run: |
           sudo -i -u $USER bash <<EOF
           kubectl apply -f $(pwd)/k8s-deployment.yaml
-          kubectl rollout status deployment/flask-app --timeout=60s || true
-          kubectl get pods -o wide
+          kubectl rollout status deployment/flask-app
           EOF
 
       - name: Log pod status and check logs
