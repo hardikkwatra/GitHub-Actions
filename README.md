@@ -1,4 +1,4 @@
-### Task 1
+#### Task 1
 
 ```markdown
 # Testing the PodState Script
@@ -123,4 +123,27 @@ After running the script, you can check the `all-pods-logs.txt` file to verify t
 cat all-pods-logs.txt
 ```
 
-By following these steps, you will be able to set up your environment, verify your Kubernetes setup, and test your script effectively.
+
+#### Task 2
+
+### Setting Up GitHub Actions Workflow
+
+1. **Create the Workflow File**: Ensure you have created a workflow file in your repository at `.github/workflows/deploy.yml`.
+2. **Configure Your Docker Hub Credentials**: 
+   - Go to your repository settings on GitHub.
+   - Navigate to `Settings` > `Secrets` and add `DOCKER_USERNAME` and `DOCKER_PASSWORD` with your Docker Hub credentials.
+3. **Push Changes**: Push your code to the `main` branch. This will trigger the GitHub Actions workflow you have set up.
+
+### Running the Linux Shell Script
+
+1. **Create the Shell Script**: Ensure you have created a shell script named `setup.sh` in your project directory.
+2. **Make the Script Executable**: 
+   ```bash
+   chmod +x setup.sh
+   ```
+3. **Execute the Script**:
+   ```bash
+   ./setup.sh
+   ```
+
+
