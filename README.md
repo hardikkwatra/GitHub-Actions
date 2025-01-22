@@ -1,4 +1,4 @@
-#### Task 1
+# Task 1
 
 ```markdown
 # Testing the PodState Script
@@ -124,7 +124,7 @@ cat all-pods-logs.txt
 ```
 
 
-#### Task 2
+# Task 2
 
 ### Setting Up GitHub Actions Workflow
 
