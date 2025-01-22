@@ -47,12 +47,30 @@ jobs:
           curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64
           chmod +x ./kind
           sudo mv ./kind /usr/local/bin/kind
-          kind create cluster --config=kind-config.yaml
+          kind create cluster
 
-      - name: Apply network CNI plugin
+      - name: Apply Calico CNI plugin
         run: |
           kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
-          sleep 30  # Wait for the CNI plugin to initialize
+          sleep 60  # Allow more time for the CNI plugin to initialize
+
+      - name: Verify network plugin
+        run: |
+          echo "Waiting for network plugin to initialize..."
+          kubectl get pods --all-namespaces
+          kubectl get nodes
+
+      - name: Restart KinD cluster if needed
+        run: |
+          if kubectl get nodes | grep "NotReady"; then
+            echo "Restarting KinD cluster due to NotReady state"
+            kind delete cluster
+            kind create cluster
+            kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+            sleep 60  # Allow more time for the CNI plugin to initialize
+          else
+            echo "Cluster is ready"
+          fi
 
       - name: Set up Kubernetes context for KinD
         run: kubectl cluster-info --context kind-kind
