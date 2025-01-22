@@ -1,4 +1,4 @@
-name: Build and Deploy to Minikube
+name: Build and Deploy
 
 on:
   push:
@@ -10,19 +10,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout the repository code
       - name: Checkout code
         uses: actions/checkout@v2
 
-      # Log in to Docker Hub
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
 
-      # Build Docker image
       - name: Build Docker image
         run: docker build -t hardddyy/flask-app:latest .
 
-      # Push Docker image to Docker Hub
       - name: Push Docker image
         run: docker push hardddyy/flask-app:latest
 
@@ -31,51 +27,66 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout the repository code
       - name: Checkout code
         uses: actions/checkout@v2
 
-      # Set up Kubernetes CLI (kubectl)
-      - name: Install kubectl
+      - name: Install Minikube
         run: |
-          curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
-          chmod +x ./kubectl
-          sudo mv ./kubectl /usr/local/bin/kubectl
+          curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+          sudo install minikube /usr/local/bin/
 
-      # Set up Minikube context using KUBE_CONFIG
-      - name: Set up Minikube context
-        env:
-          KUBECONFIG: ${{ secrets.KUBE_CONFIG }}
+      - name: Start Minikube
         run: |
-          echo "$KUBECONFIG" | base64 --decode > kubeconfig
-          export KUBECONFIG=kubeconfig
-          kubectl cluster-info
+          sudo minikube start --driver=none
+          sudo minikube addons enable ingress
 
-      # Apply Kubernetes deployment YAML
-      - name: Deploy to Minikube
-        env:
-          KUBECONFIG: ${{ secrets.KUBE_CONFIG }}
+      - name: Set up kubectl context
         run: |
-          echo "$KUBECONFIG" | base64 --decode > kubeconfig
-          export KUBECONFIG=kubeconfig
+          sudo apt-get install -y conntrack
+          minikube update-context
+
+      - name: Apply Kubernetes configuration
+        run: |
           kubectl apply -f k8s-deployment.yaml
+          kubectl apply -f k8s-service.yaml
+          kubectl rollout status deployment/flask-app
 
-      # Log deployment status
-      - name: Check deployment status
-        env:
-          KUBECONFIG: ${{ secrets.KUBE_CONFIG }}
+      - name: Log deployment status
         run: |
-          echo "$KUBECONFIG" | base64 --decode > kubeconfig
-          export KUBECONFIG=kubeconfig
-          kubectl get pods
-          kubectl get services
+          kubectl get nodes
+          kubectl get pods --all-namespaces
+          kubectl get services --all-namespaces
+          kubectl get deployments --all-namespaces
 
-      # Check logs of the deployed application
-      - name: Check Flask app logs
-        env:
-          KUBECONFIG: ${{ secrets.KUBE_CONFIG }}
+      - name: Describe pod
+        run: kubectl describe pod -l app=flask-app
+
+      - name: Describe deployment
+        run: kubectl describe deployment flask-app
+
+      - name: Log events
+        run: kubectl get events --sort-by=.metadata.creationTimestamp --namespace default
+
+      - name: Check pod logs
         run: |
-          echo "$KUBECONFIG" | base64 --decode > kubeconfig
-          export KUBECONFIG=kubeconfig
-          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}")
-          kubectl logs $POD_NAME
+          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --namespace default || echo "NoPod")
+          if [[ "$POD_NAME" != "NoPod" ]]; then
+            kubectl logs $POD_NAME
+          else
+            echo "No pods available to log."
+          fi
+
+      - name: Check Flask app response
+        run: |
+          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --namespace default || echo "NoPod")
+          if [[ "$POD_NAME" != "NoPod" ]]; then
+            kubectl port-forward $POD_NAME 5000:5000 &
+            sleep 10
+            curl http://localhost:5000 || echo "Flask app not reachable"
+          else
+            echo "No pods available for port-forwarding."
+          fi
+
+      - name: Notify Slack or log
+        if: failure()
+        run: echo "Deployment failed!"
