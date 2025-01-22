@@ -102,7 +102,7 @@ jobs:
           sudo -i -u $USER bash <<EOF
           POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --namespace default || echo "NoPod")
           if [[ "$POD_NAME" != "NoPod" ]]; then
-            kubectl logs $POD_NAME
+            kubectl logs $POD_NAME || echo "No logs available for the pod."
           else
             echo "No pods available to log."
           fi
