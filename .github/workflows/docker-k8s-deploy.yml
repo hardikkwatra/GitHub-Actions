@@ -27,10 +27,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Set up Kubernetes
-        uses: Azure/setup-kubectl@v1
-        with:
-          version: 'latest'
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
 
       - name: Deploy to Kubernetes
         run: kubectl apply -f k8s-deployment.yaml
