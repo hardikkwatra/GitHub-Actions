@@ -57,9 +57,13 @@ jobs:
 
       - name: Log deployment status
         run: |
+          kubectl get nodes
           kubectl get pods --all-namespaces
           kubectl get services --all-namespaces
           kubectl get deployments --all-namespaces
+
+      - name: Describe node
+        run: kubectl describe node kind-control-plane
 
       - name: Describe deployment
         run: kubectl describe deployment flask-app
