@@ -75,6 +75,13 @@ jobs:
           sudo -i -u $USER bash <<'EOF'
           kubectl wait --for=condition=ready pod -l app=flask-app --timeout=120s
           EOF
+      - name: Fetch node internal IP
+        run: |
+          sudo -i -u $USER bash <<EOF
+          NODE_IP=$(kubectl get nodes -o jsonpath="{.items[0].status.addresses[0].address}")
+          echo "Node IP: $NODE_IP"
+          curl http://$NODE_IP:32188 || echo "Flask app not reachable"
+          EOF
       - name: Log deployment status
         run: |
           sudo -i -u $USER bash <<EOF
@@ -86,7 +93,12 @@ jobs:
       - name: Describe pod
         run: |
           sudo -i -u $USER bash <<EOF
-          kubectl describe pod -l app=flask-app
+          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}")
+          if [[ -n "$POD_NAME" ]]; then
+            kubectl describe pod "$POD_NAME"
+          else
+            echo "No pods available to describe."
+          fi
           EOF
       - name: Describe deployment
         run: |
@@ -107,7 +119,7 @@ jobs:
       - name: Describe pod events
         run: |
           sudo -i -u $USER bash <<EOF
-          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --namespace default || echo "NoPod")
+          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" || echo "NoPod")
           if [[ "$POD_NAME" != "NoPod" ]]; then
             kubectl describe pod "$POD_NAME"
           else
