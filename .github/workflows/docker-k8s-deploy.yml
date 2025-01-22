@@ -1,1 +1,136 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Install Flask
+        run: pip install -r requirements.txt
+
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+
+      - name: Build Docker image
+        run: docker build -t hardddyy/flask-app:latest .
+
+      - name: Push Docker image
+        run: docker push hardddyy/flask-app:latest
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install dependencies including conntrack, crictl, and CNI plugins
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apt-transport-https ca-certificates curl conntrack
+          sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+          sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+          sudo apt-get update
+          sudo apt-get install -y docker-ce
+          curl -LO "https://github.com/kubernetes-sigs/cri-tools/releases/download/v1.32.0/crictl-v1.32.0-linux-amd64.tar.gz"
+          sudo tar zxvf crictl-v1.32.0-linux-amd64.tar.gz -C /usr/local/bin
+          sudo ln -s /usr/local/bin/crictl /usr/bin/crictl
+          # Download and install CNI plugins
+          curl -LO "https://github.com/containernetworking/plugins/releases/download/v1.1.1/cni-plugins-linux-amd64-v1.1.1.tgz"
+          sudo mkdir -p /opt/cni/bin
+          sudo tar -xzvf cni-plugins-linux-amd64-v1.1.1.tgz -C /opt/cni/bin
+
+      - name: Install Minikube
+        run: |
+          curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+          sudo install minikube /usr/local/bin/
+
+      - name: Start Minikube with Docker driver as non-root user
+        run: |
+          sudo -i -u $USER bash <<EOF
+          minikube start --driver=docker
+          minikube addons enable ingress
+          EOF
+
+      - name: Set up kubectl context
+        run: |
+          sudo -i -u $USER bash <<EOF
+          minikube update-context
+          EOF
+
+      - name: Apply Kubernetes configuration
+        run: |
+          sudo -i -u $USER bash <<EOF
+          kubectl apply -f $(pwd)/k8s-deployment.yaml
+          kubectl rollout status deployment/flask-app
+          EOF
+
+      - name: Log deployment status
+        run: |
+          sudo -i -u $USER bash <<EOF
+          kubectl get nodes
+          kubectl get pods --all-namespaces
+          kubectl get services --all-namespaces
+          kubectl get deployments --all-namespaces
+          EOF
+
+      - name: Describe pod
+        run: |
+          sudo -i -u $USER bash <<EOF
+          kubectl describe pod -l app=flask-app
+          EOF
+
+      - name: Describe deployment
+        run: |
+          sudo -i -u $USER bash <<EOF
+          kubectl describe deployment flask-app
+          EOF
+
+      - name: Log events
+        run: |
+          sudo -i -u $USER bash <<EOF
+          kubectl get events --sort-by=.metadata.creationTimestamp --namespace default
+          EOF
+
+      - name: Check pod logs
+        run: |
+          sudo -i -u $USER bash <<EOF
+          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --namespace default || echo "NoPod")
+          if [[ "$POD_NAME" != "NoPod" ]]; then
+            kubectl logs $POD_NAME
+          else
+            echo "No pods available to log."
+          fi
+          EOF
+
+      - name: Check Flask app response
+        run: |
+          sudo -i -u $USER bash <<EOF
+          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" --namespace default || echo "NoPod")
+          if [[ "$POD_NAME" != "NoPod" ]]; then
+            kubectl port-forward $POD_NAME 5000:5000 &
+            sleep 10
+            curl http://localhost:5000 || echo "Flask app not reachable"
+          else
+            echo "No pods available for port-forwarding."
+          fi
+          EOF
+
+      - name: Notify Slack or log
+        if: failure()
+        run: echo "Deployment failed!"
 
