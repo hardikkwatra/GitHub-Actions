@@ -56,13 +56,24 @@ jobs:
         run: kubectl apply -f k8s-deployment.yaml
 
       - name: Wait for deployment
-        run: kubectl rollout status -f k8s-deployment.yaml --timeout=600s
+        run: kubectl rollout status -f k8s-deployment.yaml --timeout=30s
 
       - name: Log deployment status
         run: |
           kubectl get pods
           kubectl get services
           kubectl get deployments
+
+      - name: Describe pods
+        run: kubectl describe pods
+
+      - name: Check pod logs
+        run: |
+          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}")
+          kubectl logs $POD_NAME
+
+      - name: Log events
+        run: kubectl get events --sort-by=.metadata.creationTimestamp
 
       - name: Check Flask app response
         run: |
