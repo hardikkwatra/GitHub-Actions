@@ -75,13 +75,6 @@ jobs:
           sudo -i -u $USER bash <<'EOF'
           kubectl wait --for=condition=ready pod -l app=flask-app --timeout=120s
           EOF
-      - name: Fetch node internal IP
-        run: |
-          sudo -i -u $USER bash <<EOF
-          NODE_IP=$(kubectl get nodes -o jsonpath="{.items[0].status.addresses[0].address}")
-          echo "Node IP: $NODE_IP"
-          curl http://$NODE_IP:32188 || echo "Flask app not reachable"
-          EOF
       - name: Log deployment status
         run: |
           sudo -i -u $USER bash <<EOF
@@ -89,16 +82,6 @@ jobs:
           kubectl get pods --all-namespaces
           kubectl get services --all-namespaces
           kubectl get deployments --all-namespaces
-          EOF
-      - name: Describe pod
-        run: |
-          sudo -i -u $USER bash <<EOF
-          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}")
-          if [[ -n "$POD_NAME" ]]; then
-            kubectl describe pod "$POD_NAME"
-          else
-            echo "No pods available to describe."
-          fi
           EOF
       - name: Describe deployment
         run: |
@@ -116,40 +99,12 @@ jobs:
           kubectl get pods -l app=flask-app -o wide
           kubectl get pod -l app=flask-app --show-labels
           EOF
-      - name: Describe pod events
+      - name: Fetch node internal IP
         run: |
           sudo -i -u $USER bash <<EOF
-          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}" || echo "NoPod")
-          if [[ "$POD_NAME" != "NoPod" ]]; then
-            kubectl describe pod "$POD_NAME"
-          else
-            echo "No pods available to describe."
-          fi
-          EOF
-      - name: Check pod logs
-        run: |
-          sudo -i -u $USER bash <<EOF
-          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}")
-          if [[ -n "$POD_NAME" ]]; then
-            kubectl logs "$POD_NAME" || echo "No logs available for the pod."
-          else
-            echo "No pods available to log."
-          fi
-          EOF
-      - name: Describe pod container status
-        run: |
-          sudo -i -u $USER bash <<EOF
-          POD_NAME=$(kubectl get pods -l app=flask-app -o jsonpath="{.items[0].metadata.name}")
-          if [[ -n "$POD_NAME" ]]; then
-            kubectl describe pod "$POD_NAME" | grep -A 10 "Containers:"
-          else
-            echo "No pods available to describe."
-          fi
-          EOF
-      - name: Create test pod to check Flask app response
-        run: |
-          sudo -i -u $USER bash <<EOF
-          kubectl run test-curl --rm -i --tty --image=radial/busyboxplus:curl --restart=Never -- curl -sS http://flask-app-service:5000 || echo "Flask app not reachable from test pod."
+          NODE_IP=$(kubectl get nodes -o jsonpath="{.items[0].status.addresses[0].address}")
+          echo "Node IP: $NODE_IP"
+          curl http://$NODE_IP:32188 || echo "Flask app not reachable"
           EOF
       - name: Notify Slack or log
         if: failure()
