@@ -24,7 +24,7 @@ jobs:
 
       # Push Docker image to Docker Hub
       - name: Push Docker image
-        run: docker push <your-dockerhub-username>/flask-app:latest
+        run: docker push hardddyy/flask-app:latest
 
   deploy:
     needs: build
