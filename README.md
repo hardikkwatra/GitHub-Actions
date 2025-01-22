@@ -124,4 +124,3 @@ cat all-pods-logs.txt
 ```
 
 By following these steps, you will be able to set up your environment, verify your Kubernetes setup, and test your script effectively.
-```
