@@ -46,11 +46,9 @@ jobs:
           sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
           sudo apt-get update
           sudo apt-get install -y docker-ce
-          curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
-          chmod +x ./kubectl
-          sudo mv ./kubectl /usr/local/bin/kubectl
-          curl -LO "https://github.com/kubernetes-sigs/cri-tools/releases/download/v1.32.0/crictl-v1.32.0-linux-amd64.tar.gz"
-          sudo tar zxvf crictl-v1.32.0-linux-amd64.tar.gz -C /usr/local/bin
+          curl -LO "https://github.com/Mirantis/cri-dockerd/releases/download/v0.2.0/cri-dockerd-v0.2.0-linux-amd64.tar.gz"
+          sudo tar zxvf cri-dockerd-v0.2.0-linux-amd64.tar.gz -C /usr/local/bin
+          sudo systemctl restart docker
 
       - name: Install Minikube
         run: |
