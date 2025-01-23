@@ -146,7 +146,7 @@ cat all-pods-logs.txt
    ./setup.sh
    ```
 
-# Task 3Sure! Here’s a consolidated and organized guide of all the steps we have taken to deploy the Flask app on EKS and monitor it, in a way that looks good for your GitHub repository's README file.
+# Task 3
 
 ---
 
